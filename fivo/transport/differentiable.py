@@ -33,15 +33,15 @@ def transport_from_potentials(x, f, g, eps, logw, n):
     temp /= denominator
     transport_matrix = tf.math.exp(temp + tf.expand_dims(logw, 2))
     transport_matrix /= tf.reduce_sum(transport_matrix, axis=2, keepdims=True)
-    op_fg = tf.print('fg:', fg)
-    op_w = tf.print('w:', tf.reduce_sum(w, 1))
-    op_temp = tf.print('temp:', temp)
-    op_exp_temp = tf.print('temp exp:', tf.math.exp(temp))
-    op_transport_matrix = tf.print('transport_matrix: ', transport_matrix)
+    # op_fg = tf.print('fg:', fg)
+    # op_w = tf.print('w:', tf.reduce_logsumexp(logw, 1))
+    # op_temp = tf.print('temp:', temp)
+    # op_exp_temp = tf.print('temp exp:', tf.math.exp(temp))
+    # op_transport_matrix = tf.print('transport_matrix: ', transport_matrix)
     #
-    with tf.control_dependencies([op_w]):#, op_fg, op_temp, op_exp_temp, op_transport_matrix]):
-        res = tf.einsum('ijk,ikl->ijl', transport_matrix, x)
-    uniform_log_weight = -math.log(n) * tf.ones_like(w)
+    # with tf.control_dependencies([op_w]):#, op_fg, op_temp, op_exp_temp, op_transport_matrix]):
+    res = tf.einsum('ijk,ikl->ijl', transport_matrix, x)
+    uniform_log_weight = -math.log(n) * tf.ones_like(logw)
     return res, uniform_log_weight
 
 
@@ -75,9 +75,9 @@ def transport(x, logw, eps, threshold, n, max_iter):
     :param n: int
     :param max_iter: int
     """
-    normalized_logw_print_op = tf.print( "normalized log: ", tf.reduce_min(logw))
-    with tf.control_dependencies([normalized_logw_print_op]):
-        alpha, beta = solve_for_state(x, logw, eps, threshold, max_iter, n)
+    # normalized_logw_print_op = tf.print( "normalized log: ", tf.reduce_min(logw))
+    # with tf.control_dependencies([normalized_logw_print_op]):
+    alpha, beta = solve_for_state(x, logw, eps, threshold, max_iter, n)
     x_tilde, w_tilde = transport_from_potentials(x, alpha, beta, eps, logw, n)
     return x_tilde, w_tilde
 

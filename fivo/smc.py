@@ -282,9 +282,9 @@ def smc(
         log_alpha, new_particle_state, loop_args = transition(particle_state, t)
         # Update the current weights with the incremental weights.
         log_alpha *= cur_mask
-        log_alpha_op = tf.print('log alpha: ', log_alpha)
-        with tf.control_dependencies([log_alpha_op]):
-            log_alpha = tf.reshape(log_alpha, [num_particles, batch_size])
+        # log_alpha_op = tf.print('log alpha: ', log_alpha)
+        # with tf.control_dependencies([log_alpha_op]):
+        log_alpha = tf.reshape(log_alpha, [num_particles, batch_size])
         log_weights_acc += log_alpha
 
         should_resample = resampling_criterion(log_weights_acc, t)

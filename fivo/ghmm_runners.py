@@ -124,8 +124,10 @@ def run_train(config):
         random_seed=config.random_seed)
     loss, bound, true_ll, gap = create_losses(model, xs, lengths)
     opt = tf.train.AdamOptimizer(config.learning_rate)
+    # train_variables_op = tf.print('train vars: ', tf.trainable_variables())
     grads = opt.compute_gradients(loss, var_list=tf.trainable_variables())
-
+    # grads_op = tf.print('grad vars: ', grads)
+    # with tf.control_dependencies([train_variables_op, grads_op]):
     train_op = opt.apply_gradients(grads, global_step=global_step)
     return bound, true_ll, gap, train_op, global_step
 
