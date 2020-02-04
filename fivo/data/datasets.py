@@ -412,7 +412,7 @@ def create_chain_graph_dataset(
       # Start the range at 1 because we've already generated z0.
       # The range ends at num_timesteps+1 because we want to include the
       # num_timesteps-th step.
-      for t in xrange(1, num_timesteps+1):
+      for t in range(1, num_timesteps+1):
         if transition_type == ROUND_TRANSITION:
           loc = np.round(states[-1])
         elif transition_type == STANDARD_TRANSITION:

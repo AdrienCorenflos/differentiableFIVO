@@ -29,7 +29,7 @@ from fivo import runners
 tf.app.flags.DEFINE_enum("mode", "train",
                          ["train", "eval", "sample"],
                          "The mode of the binary.")
-tf.app.flags.DEFINE_enum("model", "vrnn",
+tf.app.flags.DEFINE_enum("model", "ghmm",
                          ["vrnn", "ghmm", "srnn"],
                          "Model choice.")
 tf.app.flags.DEFINE_integer("latent_size", 64,
@@ -37,21 +37,21 @@ tf.app.flags.DEFINE_integer("latent_size", 64,
 tf.app.flags.DEFINE_enum("dataset_type", "pianoroll",
                          ["pianoroll", "speech", "pose"],
                          "The type of dataset.")
-tf.app.flags.DEFINE_string("dataset_path", "",
+tf.app.flags.DEFINE_string("dataset_path", r"C:\Users\Admin\Python\DifferentiableFIVO\research\fivo\bin\piano-midi.de.pkl",
                            "Path to load the dataset from.")
 tf.app.flags.DEFINE_integer("data_dimension", None,
                             "The dimension of each vector in the data sequence. "
                             "Defaults to 88 for pianoroll datasets and 200 for speech "
                             "datasets. Should not need to be changed except for "
                             "testing.")
-tf.app.flags.DEFINE_integer("batch_size", 4,
+tf.app.flags.DEFINE_integer("batch_size", 2,
                             "Batch size.")
-tf.app.flags.DEFINE_integer("num_samples", 4,
+tf.app.flags.DEFINE_integer("num_samples", 10,
                             "The number of samples (or particles) for multisample "
                             "algorithms.")
 tf.app.flags.DEFINE_string("logdir", "/tmp/smc_vi",
                            "The directory to keep checkpoints and summaries in.")
-tf.app.flags.DEFINE_integer("random_seed", None,
+tf.app.flags.DEFINE_integer("random_seed", 0,
                             "A random seed for seeding the TensorFlow graph.")
 tf.app.flags.DEFINE_integer("parallel_iterations", 30,
                             "The number of parallel iterations to use for the while "
@@ -68,11 +68,13 @@ tf.app.flags.DEFINE_float("learning_rate", 0.0002,
                           "The learning rate for ADAM.")
 tf.app.flags.DEFINE_integer("max_steps", int(1e9),
                             "The number of gradient update steps to train for.")
-tf.app.flags.DEFINE_integer("summarize_every", 50,
+tf.app.flags.DEFINE_integer("summarize_every", 1,
                             "The number of steps between summaries.")
 tf.app.flags.DEFINE_enum("resampling_type", "multinomial",
-                         ["multinomial", "relaxed"],
+                         ["multinomial", "relaxed", "differentiable"],
                          "The resampling strategy to use for training.")
+tf.app.flags.DEFINE_float("sinkhorn_regularization", 0.01,
+                         "The regularisation parameter")
 tf.app.flags.DEFINE_float("relaxed_resampling_temperature", 0.5,
                           "The relaxation temperature for relaxed resampling.")
 tf.app.flags.DEFINE_enum("proposal_type", "filtering",

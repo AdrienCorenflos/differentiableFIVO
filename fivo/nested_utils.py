@@ -41,7 +41,7 @@ def map_nested(map_fn, nested):
       contains the result of applying map_fn to each element in 'nested'. For
       example map_nested(lambda x: x+1, [1, (3, 4.3)]) returns [2, (4, 5.3)].
   """
-  out = map(map_fn, nest.flatten(nested))
+  out = list(map(map_fn, nest.flatten(nested)))
   return nest.pack_sequence_as(nested, out)
 
 
@@ -85,7 +85,7 @@ def where_tensors(condition, x_tensors, y_tensors):
   flat_x = nest.flatten(x_tensors)
   flat_y = nest.flatten(y_tensors)
   result = [tf.where(condition, x, y) for x, y in
-            itertools.izip(flat_x, flat_y)]
+            zip(flat_x, flat_y)]
 
   return nest.pack_sequence_as(x_tensors, result)
 

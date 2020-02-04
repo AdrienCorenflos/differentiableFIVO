@@ -1,10 +1,10 @@
 import tensorflow as tf
-from utils import squared_distances
-from sinkhorn import sinkhorn_potentials
+from fivo.transport.utils import squared_distances
+from fivo.transport.sinkhorn import sinkhorn_potentials
 import math
 
 
-def transport_from_potentials(x, f, g, eps, w, n):
+def transport_from_potentials(x, f, g, eps, logw, n):
     """
     To get the transported particles from the sinkhorn iterates
     :param x: tf.Tensor[N, D]
@@ -14,7 +14,7 @@ def transport_from_potentials(x, f, g, eps, w, n):
     :param g: tf.Tensor[N]
         Potential, output of the sinkhorn iterates
     :param eps: float
-    :param w: torch.Tensor[N]
+    :param logw: torch.Tensor[N]
     :param n: int
     :return: tf.Tensor[N, D], tf.Tensor[N]
     """
@@ -25,16 +25,24 @@ def transport_from_potentials(x, f, g, eps, w, n):
     denominator = eps
 
     # Clip minimal contributions to prevent nans in gradient
-    # i.e. weight can't be smaller than 1/n**2
+    # i.e. weight can't be smaller than 1/n**3
     temp = tf.clip_by_value(fg - cost_matrix,
-                            -2 * denominator * math.log(n),
+                            tf.minimum(-3 * denominator * math.log(n), -denominator*math.log(6)),
                             float('inf'))
 
     temp /= denominator
-    transport_matrix = tf.math.exp(temp) * tf.expand_dims(w, 2)
+    transport_matrix = tf.math.exp(temp + tf.expand_dims(logw, 2))
     transport_matrix /= tf.reduce_sum(transport_matrix, axis=2, keepdims=True)
+    op_fg = tf.print('fg:', fg)
+    op_w = tf.print('w:', tf.reduce_sum(w, 1))
+    op_temp = tf.print('temp:', temp)
+    op_exp_temp = tf.print('temp exp:', tf.math.exp(temp))
+    op_transport_matrix = tf.print('transport_matrix: ', transport_matrix)
+    #
+    with tf.control_dependencies([op_w]):#, op_fg, op_temp, op_exp_temp, op_transport_matrix]):
+        res = tf.einsum('ijk,ikl->ijl', transport_matrix, x)
     uniform_log_weight = -math.log(n) * tf.ones_like(w)
-    return tf.einsum('ijk,ikl->ijl', transport_matrix, x), uniform_log_weight
+    return res, uniform_log_weight
 
 
 def solve_for_state(x, logw, eps, threshold, max_iter, n):
@@ -67,14 +75,19 @@ def transport(x, logw, eps, threshold, n, max_iter):
     :param n: int
     :param max_iter: int
     """
-    alpha, beta = solve_for_state(x, logw, eps, threshold, max_iter, n)
-    x_tilde, w_tilde = transport_from_potentials(x, alpha, beta, eps, tf.math.exp(logw), n)
+    normalized_logw_print_op = tf.print( "normalized log: ", tf.reduce_min(logw))
+    with tf.control_dependencies([normalized_logw_print_op]):
+        alpha, beta = solve_for_state(x, logw, eps, threshold, max_iter, n)
+    x_tilde, w_tilde = transport_from_potentials(x, alpha, beta, eps, logw, n)
     return x_tilde, w_tilde
 
 
 def get_transport_fun(eps, threshold, max_iter=100):
-    def fun(log_weights, states, num_particles, _batch_size, _random_seed=None):
-        return transport(states, tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
+    def fun(log_weights, states, num_particles, batch_size, **_kwargs):
+        x_tilde, _ = transport(tf.reshape(states, (batch_size, num_particles, -1)),
+                               tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
+        flat_x_tilde = tf.reshape(x_tilde, [-1])
+        return flat_x_tilde
 
     return fun
 
@@ -103,11 +116,12 @@ if __name__ == '__main__':
     log_w_tf = tf.constant(log_w)
     log_w_uniform_tf = tf.constant(log_w_uniform)
     tf_x = tf.constant(x)
-    particles = transport(tf_x, log_w_tf, 1e-1, 1e-2, 100, N)
-
+    particles = transport(tf_x, log_w_tf, 5e-1, 1e-2, 100, N)
+    d_particles = tf.gradients(particles[0], tf_x)
     with tf.Session(config=config) as sess:
         tic = time.time()
         particles_val, log_uniform_weights = sess.run(particles)
+        print(sess.run(d_particles))
         print(time.time() - tic)
 
     fig, axes = plt.subplots(ncols=2, sharex=True, sharey=True)

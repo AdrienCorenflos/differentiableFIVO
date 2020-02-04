@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import tensorflow as tf
 
 import fivo.nested_utils as nested
@@ -281,7 +282,9 @@ def smc(
         log_alpha, new_particle_state, loop_args = transition(particle_state, t)
         # Update the current weights with the incremental weights.
         log_alpha *= cur_mask
-        log_alpha = tf.reshape(log_alpha, [num_particles, batch_size])
+        log_alpha_op = tf.print('log alpha: ', log_alpha)
+        with tf.control_dependencies([log_alpha_op]):
+            log_alpha = tf.reshape(log_alpha, [num_particles, batch_size])
         log_weights_acc += log_alpha
 
         should_resample = resampling_criterion(log_weights_acc, t)
@@ -290,8 +293,9 @@ def smc(
             resampled = tf.to_float(should_resample)
         else:
             # Compute the states as if we did resample.
+            normalized_log_weights_acc = log_weights_acc - tf.reduce_logsumexp(log_weights_acc, axis=0, keepdims=True)
             resampled_states = resampling_fn(
-                log_weights_acc,
+                normalized_log_weights_acc,
                 new_particle_state,
                 num_particles,
                 batch_size)
@@ -322,6 +326,8 @@ def smc(
         # For the particle filters that resampled, reset weights to zero.
         log_weights_acc *= (1. - tf.tile(resampled[tf.newaxis, :],
                                          [num_particles, 1]))
+        log_weights_acc -= tf.reduce_logsumexp(log_weights_acc, axis=0, keepdims=True)
+
         new_state = (new_particle_state, new_loop_state)
         return t + 1, new_state, new_tas, log_weights_acc, log_z_hat_acc
 

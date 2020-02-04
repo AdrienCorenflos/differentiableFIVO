@@ -1,5 +1,4 @@
 import tensorflow as tf
-from geomloss.sinkhorn_samples import softmin_tensorized
 
 
 def softmin(epsilon, cost_matrix, f):
@@ -31,6 +30,7 @@ def squared_distances(x: tf.Tensor, y: tf.Tensor):
 if __name__ == '__main__':
     import numpy as np
     import torch
+    from geomloss.sinkhorn_samples import softmin_tensorized
 
     config = tf.ConfigProto(device_count={'GPU': 0})
 

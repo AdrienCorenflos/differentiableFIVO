@@ -1,5 +1,5 @@
 import tensorflow as tf
-from utils import squared_distances, softmin
+from fivo.transport.utils import squared_distances, softmin
 
 MACHINE_PRECISION = 1e-10
 

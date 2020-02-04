@@ -451,7 +451,11 @@ class TrainableGaussianHMM(GaussianHMM, base.ELBOTrainableSequenceModel):
     log_p_zt = p_zt.log_prob(zt)
     log_q_zt = q_zt.log_prob(zt)
     log_p_xt_given_zt = p_xt_given_zt.log_prob(xt)
-    weight = log_p_zt + log_p_xt_given_zt - log_q_zt
+    log_p_zt_op = tf.print('log_p_zt: ', tf.reduce_min(log_p_zt))
+    log_q_zt_op = tf.print('log_q_zt: ', tf.reduce_min(log_q_zt))
+    log_p_xt_given_zt_op = tf.print('log_p_xt_given_zt: ', tf.reduce_min(log_p_xt_given_zt))
+    with tf.print([log_p_zt_op, log_q_zt_op, log_p_xt_given_zt_op]):
+      weight = log_p_zt + log_p_xt_given_zt - log_q_zt
     return weight, zt
 
   def _filtering_proposal(self, t, state):

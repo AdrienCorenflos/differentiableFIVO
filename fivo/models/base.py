@@ -23,7 +23,6 @@ import sonnet as snt
 import tensorflow as tf
 
 from fivo import nested_utils as nested
-import tensorflow_
 
 tfd = tf.distributions
 
@@ -289,7 +288,7 @@ class NonstationaryLinearDistribution(object):
         bias_shapes, "proposal_log_variance_%d", initializers["b"])
     self.mean_biases = _get_variables_ta(
         bias_shapes, "proposal_b_%d", initializers["b"])
-    weight_shapes = zip(inputs_per_timestep, outputs_per_timestep)
+    weight_shapes = list(zip(inputs_per_timestep, outputs_per_timestep))
     self.mean_weights = _get_variables_ta(
         weight_shapes, "proposal_w_%d", initializers["w"])
     self.shapes = tf.TensorArray(

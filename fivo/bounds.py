@@ -28,6 +28,7 @@ import tensorflow as tf
 
 from fivo import nested_utils as nested
 from fivo import smc
+from fivo.transport.differentiable import get_transport_fun
 
 
 def iwae(model,
@@ -86,6 +87,7 @@ def fivo(model,
          num_samples=1,
          resampling_criterion=smc.ess_criterion,
          resampling_type='multinomial',
+         sinkhorn_regularization=0.01,
          relaxed_resampling_temperature=0.5,
          parallel_iterations=30,
          swap_memory=True,
@@ -163,6 +165,10 @@ def fivo(model,
   elif resampling_type == 'relaxed':
     resampling_fn = functools.partial(
         smc.relaxed_resampling, temperature=relaxed_resampling_temperature)
+  elif resampling_type == 'differentiable':
+      resampling_fn = get_transport_fun(sinkhorn_regularization, 1e-2, 100)
+  else:
+      raise NotImplementedError
   resampling_fn = functools.partial(resampling_fn, random_seed=random_seed)
 
   def transition_fn(prev_state, t):
