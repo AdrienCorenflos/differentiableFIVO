@@ -64,16 +64,16 @@ tf.app.flags.DEFINE_enum("bound", "fivo",
 tf.app.flags.DEFINE_boolean("normalize_by_seq_len", True,
                             "If true, normalize the loss by the number of timesteps "
                             "per sequence.")
-tf.app.flags.DEFINE_float("learning_rate", 0.0002,
+tf.app.flags.DEFINE_float("learning_rate", 0.01,
                           "The learning rate for ADAM.")
-tf.app.flags.DEFINE_integer("max_steps", int(1e9),
+tf.app.flags.DEFINE_integer("max_steps", int(1e6),
                             "The number of gradient update steps to train for.")
 tf.app.flags.DEFINE_integer("summarize_every", 50,
                             "The number of steps between summaries.")
 tf.app.flags.DEFINE_enum("resampling_type", "differentiable",
                          ["multinomial", "relaxed", "differentiable"],
                          "The resampling strategy to use for training.")
-tf.app.flags.DEFINE_float("sinkhorn_regularization", 0.01,
+tf.app.flags.DEFINE_float("sinkhorn_regularization", 0.1,
                          "The regularisation parameter")
 tf.app.flags.DEFINE_float("relaxed_resampling_temperature", 0.5,
                           "The relaxation temperature for relaxed resampling.")
