@@ -57,8 +57,8 @@ def sinkhorn_potentials(log_alpha, x, log_beta, y, epsilon, threshold, max_iter=
 if __name__ == '__main__':
     import numpy as np
     import os
-    import torch
-    from geomloss.sinkhorn_samples import sinkhorn_tensorized
+    #import torch
+    #from geomloss.sinkhorn_samples import sinkhorn_tensorized
     import time
 
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"

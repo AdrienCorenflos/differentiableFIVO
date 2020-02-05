@@ -1,9 +1,17 @@
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+
 import tensorflow as tf
 from fivo.transport.utils import squared_distances
 from fivo.transport.sinkhorn import sinkhorn_potentials
+from fivo.nested_utils import map_nested
 import math
+from tensorflow.python.util import nest
 
-
+import sys
 def transport_from_potentials(x, f, g, eps, logw, n):
     """
     To get the transported particles from the sinkhorn iterates
@@ -82,12 +90,18 @@ def transport(x, logw, eps, threshold, n, max_iter):
     return x_tilde, w_tilde
 
 
+def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter):
+    reshaped_state = tf.reshape(x, (batch_size, num_particles, -1))
+    x_tilde, _ = transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
+    flat_x_tilde = tf.reshape(x_tilde, [-1])
+    return flat_x_tilde
+
 def get_transport_fun(eps, threshold, max_iter=100):
     def fun(log_weights, states, num_particles, batch_size, **_kwargs):
-        x_tilde, _ = transport(tf.reshape(states, (batch_size, num_particles, -1)),
-                               tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
-        flat_x_tilde = tf.reshape(x_tilde, [-1])
-        return flat_x_tilde
+
+        new_state = map_nested(lambda x: transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter),
+                               states)
+        return new_state
 
     return fun
 

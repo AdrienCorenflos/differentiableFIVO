@@ -9,7 +9,6 @@ def softmin(epsilon, cost_matrix, f):
     return -epsilon * log_sum_exp
 
 
-@tf.function
 def squared_distances(x: tf.Tensor, y: tf.Tensor):
     ndim = tf.keras.backend.ndim(x)
     if ndim == 2:
