@@ -100,7 +100,8 @@ def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, 
 
 def get_transport_fun(eps, threshold, max_iter=100):
     def fun(log_weights, states, num_particles, batch_size, **_kwargs):
-        if True: # for vrnn
+
+        if False: # for vrnn
             rnn_state = states.rnn_state
             rnn_out = states.rnn_out
             latent_encoded = states.latent_encoded
@@ -116,9 +117,13 @@ def get_transport_fun(eps, threshold, max_iter=100):
                                            latent_encoded=latent_encoded)
 
         else:
-            new_state = map_nested(lambda x: transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter),states)
-
-
+            #new_state = map_nested(lambda x: transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter),states)
+            rnn_state = states.rnn_state
+            rnn_out = states.rnn_out
+            latent_encoded = states.latent_encoded
+            new_state = TrainableVRNNState(rnn_state=rnn_state,
+                                           rnn_out=rnn_out,
+                                           latent_encoded=latent_encoded)
 
         return new_state
 

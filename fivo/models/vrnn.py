@@ -563,7 +563,7 @@ def create_vrnn(
     tilt = None
 
   rnn_cell = tf.nn.rnn_cell.LSTMCell(rnn_hidden_size,
-                                     initializer=initializers["w"])
+                                     initializer=initializers["w"], state_is_tuple=False)
   rev_rnn_cell = tf.nn.rnn_cell.LSTMCell(rnn_hidden_size,
                                          initializer=initializers["w"])
   return TrainableVRNN(

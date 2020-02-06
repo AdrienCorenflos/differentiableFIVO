@@ -1,0 +1,13 @@
+python ../differentiableFIVO/run_fivo.py \
+  --mode=train \
+  --logdir=../logdir \
+  --model=vrnn \
+  --bound=fivo \
+  --summarize_every=100 \
+  --batch_size=4 \
+  --num_samples=4 \
+  --learning_rate=0.0001 \
+  --dataset_path="../data/jsb.pkl" \
+  --dataset_type="pianoroll"\
+  --resampling_type="differentiable"\
+  --latent_size=64
