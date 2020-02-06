@@ -10,6 +10,7 @@ from fivo.transport.sinkhorn import sinkhorn_potentials
 from fivo.nested_utils import map_nested
 import math
 from tensorflow.python.util import nest
+from fivo.models.vrnn import TrainableVRNNState
 
 import sys
 def transport_from_potentials(x, f, g, eps, logw, n):
@@ -66,7 +67,7 @@ def solve_for_state(x, logw, eps, threshold, max_iter, n):
     :return: torch.Tensor[N], torch.Tensor[N]
         the potentials
     """
-    uniform_log_weight = -math.log(n) * tf.ones_like(logw)
+    uniform_log_weight = tf.tile(tf.constant([-math.log(n)]), tf.constant([n]))# * tf.ones_like(logw)
     alpha, beta = sinkhorn_potentials(uniform_log_weight, x, logw, x, eps, threshold, max_iter)
     return alpha, beta
 
@@ -91,16 +92,34 @@ def transport(x, logw, eps, threshold, n, max_iter):
 
 
 def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter):
-    reshaped_state = tf.reshape(x, (batch_size, num_particles, -1))
+    reshaped_state = tf.reshape(x, [batch_size, num_particles, -1])
     x_tilde, _ = transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
     flat_x_tilde = tf.reshape(x_tilde, [-1])
     return flat_x_tilde
 
+
 def get_transport_fun(eps, threshold, max_iter=100):
     def fun(log_weights, states, num_particles, batch_size, **_kwargs):
+        if True: # for vrnn
+            rnn_state = states.rnn_state
+            rnn_out = states.rnn_out
+            latent_encoded = states.latent_encoded
+            data_dim = states.latent_encoded.get_shape().as_list()[-1]
+            #rnn_state = rnn_state + tf.constant([0.,0.,0.])
 
-        new_state = map_nested(lambda x: transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter),
-                               states)
+            #rnn_state = transport_helper(rnn_state, log_weights, num_particles, batch_size, eps, threshold, max_iter)
+            latent_encoded = transport_helper(latent_encoded, log_weights, num_particles, batch_size, eps, threshold,max_iter)
+
+            latent_encoded = tf.reshape(latent_encoded, [num_particles*batch_size, data_dim])
+            new_state = TrainableVRNNState(rnn_state=rnn_state,
+                                           rnn_out=rnn_out,
+                                           latent_encoded=latent_encoded)
+
+        else:
+            new_state = map_nested(lambda x: transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter),states)
+
+
+
         return new_state
 
     return fun

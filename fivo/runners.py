@@ -202,6 +202,7 @@ def run_train(config, create_dataset_and_model_fn=create_dataset_and_model):
             resampling_criterion=smc.ess_criterion,
             resampling_type=config.resampling_type,
             random_seed=config.random_seed,
+            sinkhorn_regularization=config.sinkhorn_regularization,
             parallel_iterations=config.parallel_iterations
         )
     # Compute loss scaled by number of timesteps.

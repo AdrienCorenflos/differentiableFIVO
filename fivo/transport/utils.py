@@ -2,8 +2,8 @@ import tensorflow as tf
 
 
 def softmin(epsilon, cost_matrix, f):
-    batch_size = cost_matrix.shape[0]
-    f_ = tf.reshape(f, (batch_size, 1, -1))
+    batch_size = cost_matrix.get_shape().as_list()[-1]
+    f_ = tf.reshape(f, [batch_size, 1, -1])
     temp_val = f_ - cost_matrix / epsilon
     log_sum_exp = tf.reduce_logsumexp(temp_val, axis=2)
     return -epsilon * log_sum_exp
