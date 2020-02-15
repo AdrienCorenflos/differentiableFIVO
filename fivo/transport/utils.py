@@ -2,16 +2,16 @@ import tensorflow as tf
 
 
 def softmin(epsilon, cost_matrix, f):
-    print_op = tf.print('cost_matrix:', cost_matrix.shape)
-    with tf.control_dependencies([print_op]):
-        batch_size = cost_matrix.get_shape().as_list()[0]
+    #print_op = tf.print('cost_matrix:', cost_matrix.shape)
+    #with tf.control_dependencies([print_op]):
+    batch_size = cost_matrix.get_shape().as_list()[0]
         # hack here for batchsize = num particles, need to feed batch size in at ^^ doesnt work
-        f_ = tf.reshape(f, [cost_matrix.get_shape().as_list()[1],
-                            1,
-                            cost_matrix.get_shape().as_list()[2]])
-    print_op2 = tf.print('f_:', f_.shape)
-    with tf.control_dependencies([print_op2]):
-        temp_val = f_ - cost_matrix / epsilon
+    f_ = tf.reshape(f, [cost_matrix.get_shape().as_list()[1],
+                        1,
+                        cost_matrix.get_shape().as_list()[2]])
+    #print_op2 = tf.print('f_:', f_.shape)
+    #with tf.control_dependencies([print_op2]):
+    temp_val = f_ - cost_matrix / epsilon
     log_sum_exp = tf.reduce_logsumexp(temp_val, axis=2)
     return -epsilon * log_sum_exp
 
