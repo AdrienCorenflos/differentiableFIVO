@@ -91,7 +91,8 @@ def fivo(model,
          relaxed_resampling_temperature=0.5,
          parallel_iterations=30,
          swap_memory=True,
-         random_seed=None):
+         random_seed=None,
+         model_tag = None):
   """Computes the FIVO lower bound on the log marginal probability.
 
   This method accepts a stochastic latent variable model and some observations
@@ -166,7 +167,7 @@ def fivo(model,
     resampling_fn = functools.partial(
         smc.relaxed_resampling, temperature=relaxed_resampling_temperature)
   elif resampling_type == 'differentiable':
-      resampling_fn = get_transport_fun(sinkhorn_regularization, 1e-2, 100)
+      resampling_fn = get_transport_fun(sinkhorn_regularization, 1e-2, 100, model_tag = model_tag)
   else:
       raise NotImplementedError
   resampling_fn = functools.partial(resampling_fn, random_seed=random_seed)

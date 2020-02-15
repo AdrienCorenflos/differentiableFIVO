@@ -194,7 +194,8 @@ def run_train(config, create_dataset_and_model_fn=create_dataset_and_model):
             random_seed=config.random_seed,
             relaxed_resampling_temperature=config.relaxed_resampling_temperature,
             sinkhorn_regularization=config.sinkhorn_regularization,
-            parallel_iterations=config.parallel_iterations
+            parallel_iterations=config.parallel_iterations,
+            model_tag=config.model
         )
       else:
         ll_per_seq, _, _, _ = bounds.fivo(
@@ -203,7 +204,8 @@ def run_train(config, create_dataset_and_model_fn=create_dataset_and_model):
             resampling_type=config.resampling_type,
             random_seed=config.random_seed,
             sinkhorn_regularization=config.sinkhorn_regularization,
-            parallel_iterations=config.parallel_iterations
+            parallel_iterations=config.parallel_iterations,
+            model_tag = config.model
         )
     # Compute loss scaled by number of timesteps.
     ll_per_t = tf.reduce_mean(ll_per_seq / tf.to_float(lengths))

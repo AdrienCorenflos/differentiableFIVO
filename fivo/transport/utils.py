@@ -2,15 +2,23 @@ import tensorflow as tf
 
 
 def softmin(epsilon, cost_matrix, f):
-    batch_size = cost_matrix.get_shape().as_list()[-1]
-    f_ = tf.reshape(f, [batch_size, 1, -1])
-    temp_val = f_ - cost_matrix / epsilon
+    print_op = tf.print('cost_matrix:', cost_matrix.shape)
+    with tf.control_dependencies([print_op]):
+        batch_size = cost_matrix.get_shape().as_list()[0]
+        # hack here for batchsize = num particles, need to feed batch size in at ^^ doesnt work
+        f_ = tf.reshape(f, [cost_matrix.get_shape().as_list()[1],
+                            1,
+                            cost_matrix.get_shape().as_list()[2]])
+    print_op2 = tf.print('f_:', f_.shape)
+    with tf.control_dependencies([print_op2]):
+        temp_val = f_ - cost_matrix / epsilon
     log_sum_exp = tf.reduce_logsumexp(temp_val, axis=2)
     return -epsilon * log_sum_exp
 
 
 def squared_distances(x: tf.Tensor, y: tf.Tensor):
     ndim = tf.keras.backend.ndim(x)
+    #d = x.get_shape().as_list()[-1]
     if ndim == 2:
         # x.shape = [N, D]
         # y.shape = [M, D]
@@ -23,7 +31,7 @@ def squared_distances(x: tf.Tensor, y: tf.Tensor):
         yy = tf.expand_dims(tf.reduce_sum(y * y, axis=-1), 1)
     else:
         raise ValueError('2 or 3 dimensions expected')
-    return tf.clip_by_value(xx - 2 * xy + yy, 0., float('inf'))
+    return tf.clip_by_value(xx - 2 * xy + yy, 0., float('inf')) #/ d ** 2
 
 
 if __name__ == '__main__':

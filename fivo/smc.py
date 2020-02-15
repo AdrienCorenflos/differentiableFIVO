@@ -331,6 +331,12 @@ def smc(
         new_state = (new_particle_state, new_loop_state)
         return t + 1, new_state, new_tas, log_weights_acc, log_z_hat_acc
 
+    #print_op1 = tf.print("state t0:", t0.shape)
+    #print_op2 = tf.print("state init_states:", init_states[0].shape)
+    #print_op4 = tf.print("state log_weights_acc:", log_weights_acc.shape)
+    #print_op5 = tf.print("state log_z_hat_acc:", log_z_hat_acc.shape)
+
+    #with tf.control_dependencies([print_op1,print_op2, print_op4,print_op5]):
     _, final_state, tas, _, log_z_hat = tf.while_loop(
         while_predicate,
         while_step,

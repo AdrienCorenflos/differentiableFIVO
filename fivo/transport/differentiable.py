@@ -13,7 +13,11 @@ from tensorflow.python.util import nest
 from fivo.models.vrnn import TrainableVRNNState
 
 import sys
-def transport_from_potentials(x, f, g, eps, logw, n):
+
+
+
+
+def transport_from_potentials(x, f, g, eps, logw, n, ):
     """
     To get the transported particles from the sinkhorn iterates
     :param x: tf.Tensor[N, D]
@@ -49,7 +53,7 @@ def transport_from_potentials(x, f, g, eps, logw, n):
     # op_transport_matrix = tf.print('transport_matrix: ', transport_matrix)
     #
     # with tf.control_dependencies([op_w]):#, op_fg, op_temp, op_exp_temp, op_transport_matrix]):
-    res = tf.einsum('ijk,ikl->ijl', transport_matrix, x)
+    res = tf.einsum('ijk,ikl->ijl', transport_matrix, x,)
     uniform_log_weight = -math.log(n) * tf.ones_like(logw)
     return res, uniform_log_weight
 
@@ -67,8 +71,8 @@ def solve_for_state(x, logw, eps, threshold, max_iter, n):
     :return: torch.Tensor[N], torch.Tensor[N]
         the potentials
     """
-    uniform_log_weight = tf.tile(tf.constant([-math.log(n)]), tf.constant([n]))# * tf.ones_like(logw)
-    alpha, beta = sinkhorn_potentials(uniform_log_weight, x, logw, x, eps, threshold, max_iter)
+    uniform_log_weight = -math.log(n) * tf.ones_like(logw)
+    alpha, beta, _, _ = sinkhorn_potentials(uniform_log_weight, x, logw, x, eps, threshold, max_iter)
     return alpha, beta
 
 
@@ -87,47 +91,79 @@ def transport(x, logw, eps, threshold, n, max_iter):
     # normalized_logw_print_op = tf.print( "normalized log: ", tf.reduce_min(logw))
     # with tf.control_dependencies([normalized_logw_print_op]):
     alpha, beta = solve_for_state(x, logw, eps, threshold, max_iter, n)
-    x_tilde, w_tilde = transport_from_potentials(x, alpha, beta, eps, logw, n)
+    print_op1 = tf.print('alpha', alpha.shape)
+    print_op2 = tf.print('beta', beta.shape)
+    with tf.control_dependencies([print_op1,print_op2]):
+        x_tilde, w_tilde = transport_from_potentials(x, alpha, beta, eps, logw, n)
     return x_tilde, w_tilde
 
 
 def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter):
-    reshaped_state = tf.reshape(x, [batch_size, num_particles, -1])
+    if len(x.get_shape().as_list()) > 1:
+        data_dim = x.get_shape().as_list()[-1]
+    else:
+        data_dim = 1
+    #print_op1 = tf.print("pre reshape x: ", x.shape)
+    #with tf.control_dependencies([print_op1]):
+    reshaped_state = tf.reshape(x, [batch_size, num_particles, data_dim])
+
     x_tilde, _ = transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
-    flat_x_tilde = tf.reshape(x_tilde, [-1])
+
+    #print_op3 = tf.print("post transport x: ", x_tilde.shape)
+    #with tf.control_dependencies([print_op3]):
+    flat_x_tilde = tf.reshape(x_tilde, [batch_size * num_particles * data_dim])
+
     return flat_x_tilde
 
 
-def get_transport_fun(eps, threshold, max_iter=100):
-    def fun(log_weights, states, num_particles, batch_size, **_kwargs):
+def vrnn_transport_resamp(eps, threshold, max_iter=100):
 
-        if False: # for vrnn
-            rnn_state = states.rnn_state
-            rnn_out = states.rnn_out
-            latent_encoded = states.latent_encoded
-            data_dim = states.latent_encoded.get_shape().as_list()[-1]
-            #rnn_state = rnn_state + tf.constant([0.,0.,0.])
+    def func(log_weights, states, num_particles, batch_size, **_kwargs):
+        # extract tensor from state - rnn state
+        data_dim = states.latent_encoded.get_shape().as_list()[-1]
+        # get tensors from state
+        rnn_state = states.rnn_state
 
-            #rnn_state = transport_helper(rnn_state, log_weights, num_particles, batch_size, eps, threshold, max_iter)
-            latent_encoded = transport_helper(latent_encoded, log_weights, num_particles, batch_size, eps, threshold,max_iter)
+        # extract tensor from state - others
+        rnn_out = states.rnn_out
+        latent_encoded = states.latent_encoded
 
-            latent_encoded = tf.reshape(latent_encoded, [num_particles*batch_size, data_dim])
-            new_state = TrainableVRNNState(rnn_state=rnn_state,
-                                           rnn_out=rnn_out,
-                                           latent_encoded=latent_encoded)
+        # concat
+        #c_prev = tf.expand_dims(c_prev, axis=1)
+        #m_prev = tf.expand_dims(m_prev, axis=1)
+        #state_tensor = tf.concat([rnn_state, latent_encoded], axis=1)
 
-        else:
-            #new_state = map_nested(lambda x: transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter),states)
-            rnn_state = states.rnn_state
-            rnn_out = states.rnn_out
-            latent_encoded = states.latent_encoded
-            new_state = TrainableVRNNState(rnn_state=rnn_state,
-                                           rnn_out=rnn_out,
-                                           latent_encoded=latent_encoded)
+        # run transport resampling
+        latent_encoded = tf.reshape(latent_encoded, [batch_size * num_particles, data_dim])
+
+        new_latent_encoded = transport_helper(latent_encoded, log_weights, num_particles, batch_size, eps, threshold, max_iter)
+
+        new_latent_encoded = tf.reshape(new_latent_encoded, [batch_size*num_particles, data_dim])
+        # put back into vrnn state
+        #rnn_state, latent_encoded = state_tensor[:,1], state_tensor[:, 2:]
+        log_weights = tf.reshape(log_weights, [num_particles, batch_size])
+
+        new_latent_encoded = latent_encoded + 0.
+        latent_encoded = tf.reshape(latent_encoded, [batch_size * num_particles, data_dim])
+
+        new_state = TrainableVRNNState(rnn_state=rnn_state,
+                                       rnn_out=rnn_out,
+                                       latent_encoded=new_latent_encoded)
 
         return new_state
+    return func
 
-    return fun
+
+def get_transport_fun(eps, threshold, max_iter=100, model_tag = None):
+    print(model_tag)
+    if model_tag == "vrnn":
+        func = vrnn_transport_resamp(eps, threshold, max_iter=100)
+    else:
+        def func(log_weights, states, num_particles, batch_size, **_kwargs):
+            new_states = transport_helper(states, log_weights, num_particles, batch_size, eps, threshold, max_iter)
+            return new_states
+
+    return func
 
 
 if __name__ == '__main__':
