@@ -127,7 +127,7 @@ def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, 
     return x_tilde, other_things_transported
 
 
-def vrnn_transport_resamp(eps, threshold, max_iter=100):
+def vrnn_transport_resamp(eps, threshold, max_iter=100, transport_rnn_state = False):
 
     def func(log_weights, states, num_particles, batch_size, **_kwargs):
         data_dim = states.latent_encoded.get_shape().as_list()[-1]
@@ -138,7 +138,7 @@ def vrnn_transport_resamp(eps, threshold, max_iter=100):
         latent_encoded = states.latent_encoded
 
 
-        ot_all = False
+        ot_all = transport_rnn_state
         # run transport resampling
         if ot_all: # transport all state
             # concat
@@ -154,7 +154,7 @@ def vrnn_transport_resamp(eps, threshold, max_iter=100):
 
             new_rnn_state, new_latent_encoded = tf.split(new_state_tensor, num_or_size_splits = [data_dim*2, data_dim], axis=1)
 
-        if not ot_all:
+        if not transport_rnn_state:
             #print_op = tf.print('latent_encoded', latent_encoded.shape)
             #with tf.control_dependencies([print_op]):
             new_latent_encoded, new_rnn_state = transport_helper(latent_encoded,
