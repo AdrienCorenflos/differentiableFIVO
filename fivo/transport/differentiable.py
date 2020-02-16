@@ -17,7 +17,7 @@ import sys
 
 
 
-def transport_from_potentials(x, f, g, eps, logw, n):
+def transport_from_potentials(x, f, g, eps, logw, n, other_things_to_transport = None):
     """
     To get the transported particles from the sinkhorn iterates
     :param x: tf.Tensor[N, D]
@@ -50,12 +50,16 @@ def transport_from_potentials(x, f, g, eps, logw, n):
     # op_w = tf.print('w:', tf.reduce_logsumexp(logw, 1))
     # op_temp = tf.print('temp:', temp)
     # op_exp_temp = tf.print('temp exp:', tf.math.exp(temp))
-    # op_transport_matrix = tf.print('transport_matrix: ', transport_matrix)
-    #
-    # with tf.control_dependencies([op_w]):#, op_fg, op_temp, op_exp_temp, op_transport_matrix]):
-    res = tf.einsum('ijk,ikl->ijl', transport_matrix, x,)
+    #op_transport_matrix = tf.print('transport_matrix: ', transport_matrix.shape)
+    #with tf.control_dependencies([op_transport_matrix]):#, op_fg, op_temp, op_exp_temp, op_transport_matrix]):
+    res = tf.einsum('ijk,ikl->ijl', transport_matrix, x)
     uniform_log_weight = -math.log(n) * tf.ones_like(logw)
-    return res, uniform_log_weight
+
+    if other_things_to_transport is not None:
+        other_things_transported = tf.einsum('ijk,ikl->ijl', transport_matrix, other_things_to_transport)
+    else:
+        other_things_transported = None
+    return res, uniform_log_weight, other_things_transported
 
 
 def solve_for_state(x, logw, eps, threshold, max_iter, n, batch_size):
@@ -76,7 +80,7 @@ def solve_for_state(x, logw, eps, threshold, max_iter, n, batch_size):
     return alpha, beta
 
 
-def transport(x, logw, eps, threshold, n, max_iter, batch_size):
+def transport(x, logw, eps, threshold, n, max_iter, batch_size, other_things_to_transport=None):
     """
     Combine solve_for_state and transport_from_potentials in a "reweighting scheme"
     :param x: tf.Tensor[N, D]
@@ -94,11 +98,11 @@ def transport(x, logw, eps, threshold, n, max_iter, batch_size):
     #print_op1 = tf.print('alpha', alpha.shape)
     #print_op2 = tf.print('beta', beta.shape)
     #with tf.control_dependencies([print_op1,print_op2]):
-    x_tilde, w_tilde = transport_from_potentials(x, alpha, beta, eps, logw, n)
-    return x_tilde, w_tilde
+    x_tilde, w_tilde, other_things_transported = transport_from_potentials(x, alpha, beta, eps, logw, n, other_things_to_transport)
+    return x_tilde, w_tilde, other_things_transported
 
 
-def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter):
+def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, max_iter, other_things_to_transport=None):
     if len(x.get_shape().as_list()) > 1:
         data_dim = x.get_shape().as_list()[-1]
     else:
@@ -106,12 +110,21 @@ def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, 
     #print_op1 = tf.print("pre reshape x: ", x.shape)
     #with tf.control_dependencies([print_op1]):
     reshaped_state = tf.reshape(x, [batch_size, num_particles, data_dim])
+    if other_things_to_transport is not None:
+        other_data_dim = other_things_to_transport.get_shape().as_list()[-1]
+        other_things_to_transport = tf.reshape(other_things_to_transport, [batch_size, num_particles, other_data_dim])
 
-    x_tilde, _ = transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter, batch_size)
+    #print_op = tf.print('reshaped_state', reshaped_state.shape)
+    #with tf.control_dependencies([print_op]):
+    x_tilde, _ , other_things_transported= transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter, batch_size, other_things_to_transport)
 
+    #print_op = tf.print('x_tilde',x_tilde.shape)
+    #with tf.control_dependencies([print_op]):
     x_tilde = tf.reshape(x_tilde, [batch_size * num_particles, data_dim])
+    if other_things_to_transport is not None:
+        other_things_transported = tf.reshape(other_things_to_transport, [batch_size * num_particles, other_data_dim])
 
-    return x_tilde
+    return x_tilde, other_things_transported
 
 
 def vrnn_transport_resamp(eps, threshold, max_iter=100):
@@ -124,13 +137,34 @@ def vrnn_transport_resamp(eps, threshold, max_iter=100):
         rnn_out = states.rnn_out # this does not get used, but need a placeholder
         latent_encoded = states.latent_encoded
 
-        # concat
-        state_tensor = tf.concat([rnn_state, latent_encoded], axis=1)
 
+        ot_all = False
         # run transport resampling
-        new_state_tensor = transport_helper(state_tensor, log_weights, num_particles, batch_size, eps, threshold, max_iter)
-        new_rnn_state, new_latent_encoded = tf.split(new_state_tensor, num_or_size_splits = [data_dim*2, data_dim], axis=1)
+        if ot_all: # transport all state
+            # concat
+            state_tensor = tf.concat([rnn_state, latent_encoded], axis=1)
 
+            new_state_tensor, _ = transport_helper(state_tensor,
+                                                                 log_weights,
+                                                                 num_particles,
+                                                                 batch_size,
+                                                                 eps,
+                                                                 threshold,
+                                                                 max_iter)
+
+            new_rnn_state, new_latent_encoded = tf.split(new_state_tensor, num_or_size_splits = [data_dim*2, data_dim], axis=1)
+
+        if not ot_all:
+            #print_op = tf.print('latent_encoded', latent_encoded.shape)
+            #with tf.control_dependencies([print_op]):
+            new_latent_encoded, new_rnn_state = transport_helper(latent_encoded,
+                                                                 log_weights,
+                                                                 num_particles,
+                                                                 batch_size,
+                                                                 eps,
+                                                                 threshold,
+                                                                 max_iter,
+                                                                 other_things_to_transport=rnn_state)
 
         new_state = TrainableVRNNState(rnn_state=new_rnn_state,
                                        rnn_out=rnn_out,
