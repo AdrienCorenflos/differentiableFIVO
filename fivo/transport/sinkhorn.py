@@ -5,18 +5,18 @@ from .utils import squared_distances, softmin
 MACHINE_PRECISION = 1e-10
 
 
-def sinkhorn_loop(log_alpha, log_beta, cost_xy, cost_yx, cost_xx, cost_yy, epsilon, threshold, max_iter):
+def sinkhorn_loop(log_alpha, log_beta, cost_xy, cost_yx, cost_xx, cost_yy, epsilon, threshold, batch_size, max_iter):
     # initialisation
-    a_y_init = softmin(epsilon, cost_yx, log_alpha)
-    b_x_init = softmin(epsilon, cost_xy, log_beta)
-    a_x_init = softmin(epsilon, cost_xx, log_alpha)
-    b_y_init = softmin(epsilon, cost_yy, log_beta)
+    a_y_init = softmin(epsilon, cost_yx, log_alpha, batch_size)
+    b_x_init = softmin(epsilon, cost_xy, log_beta, batch_size)
+    a_x_init = softmin(epsilon, cost_xx, log_alpha, batch_size)
+    b_y_init = softmin(epsilon, cost_yy, log_beta, batch_size)
 
     def apply_one(a_y, b_x, a_x, b_y):
-        at_y = softmin(epsilon, cost_yx, log_alpha + b_x / epsilon)
-        bt_x = softmin(epsilon, cost_xy, log_beta + a_y / epsilon)
-        at_x = softmin(epsilon, cost_xx, log_alpha + a_x / epsilon)
-        bt_y = softmin(epsilon, cost_yy, log_beta + b_y / epsilon)
+        at_y = softmin(epsilon, cost_yx, log_alpha + b_x / epsilon, batch_size)
+        bt_x = softmin(epsilon, cost_xy, log_beta + a_y / epsilon, batch_size)
+        at_x = softmin(epsilon, cost_xx, log_alpha + a_x / epsilon, batch_size)
+        bt_y = softmin(epsilon, cost_yy, log_beta + b_y / epsilon, batch_size)
 
         a_y_new = .5 * (a_y + at_y)
         b_x_new = .5 * (b_x + bt_x)
@@ -51,21 +51,21 @@ def sinkhorn_loop(log_alpha, log_beta, cost_xy, cost_yx, cost_xx, cost_yy, epsil
                    initial_update_size])
 
     # We do a last extrapolation for the gradient - leverages fixed point + implicit function theorem
-    a_y_final = softmin(epsilon, cost_yx, log_alpha + tf.stop_gradient(converged_b_x) / epsilon)
-    b_x_final = softmin(epsilon, cost_xy, log_beta + tf.stop_gradient(converged_a_y) / epsilon)
+    a_y_final = softmin(epsilon, cost_yx, log_alpha + tf.stop_gradient(converged_b_x) / epsilon, batch_size)
+    b_x_final = softmin(epsilon, cost_xy, log_beta + tf.stop_gradient(converged_a_y) / epsilon, batch_size)
 
-    a_x_final = softmin(epsilon, cost_xx, log_alpha + tf.stop_gradient(converged_a_x) / epsilon)
-    b_y_final = softmin(epsilon, cost_yy, log_beta + tf.stop_gradient(converged_b_y) / epsilon)
+    a_x_final = softmin(epsilon, cost_xx, log_alpha + tf.stop_gradient(converged_a_x) / epsilon, batch_size)
+    b_y_final = softmin(epsilon, cost_yy, log_beta + tf.stop_gradient(converged_b_y) / epsilon, batch_size)
 
     return a_y_final, b_x_final, a_x_final, b_y_final
 
 
-def sinkhorn_potentials(log_alpha, x, log_beta, y, epsilon, threshold, max_iter=100):
+def sinkhorn_potentials(log_alpha, x, log_beta, y, epsilon, threshold, batch_size, max_iter=100):
     cost_xy = 0.5 * squared_distances(x, tf.stop_gradient(y))
     cost_yx = 0.5 * squared_distances(y, tf.stop_gradient(x))
     cost_xx = 0.5 * squared_distances(x, tf.stop_gradient(x))
     cost_yy = 0.5 * squared_distances(y, tf.stop_gradient(y))
-    a_y, b_x, a_x, b_y = sinkhorn_loop(log_alpha, log_beta, cost_xy, cost_yx, cost_xx, cost_yy, epsilon, threshold,
+    a_y, b_x, a_x, b_y = sinkhorn_loop(log_alpha, log_beta, cost_xy, cost_yx, cost_xx, cost_yy, epsilon, threshold, batch_size,
                                        max_iter)
     return a_y, b_x, a_x, b_y
 

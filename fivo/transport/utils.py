@@ -1,12 +1,13 @@
 import tensorflow as tf
 
 
-def softmin(epsilon, cost_matrix, f):
+def softmin(epsilon, cost_matrix, f, batch_size=None):
     #print_op = tf.print('cost_matrix:', cost_matrix.shape)
     #with tf.control_dependencies([print_op]):
-    batch_size = cost_matrix.get_shape().as_list()[0]
+    if batch_size is None:
+        batch_size = cost_matrix.get_shape().as_list()[0]
         # hack here for batchsize = num particles, need to feed batch size in at ^^ doesnt work
-    f_ = tf.reshape(f, [cost_matrix.get_shape().as_list()[1],
+    f_ = tf.reshape(f, [batch_size,# cost_matrix.get_shape().as_list()[1],
                         1,
                         cost_matrix.get_shape().as_list()[2]])
     #print_op2 = tf.print('f_:', f_.shape)

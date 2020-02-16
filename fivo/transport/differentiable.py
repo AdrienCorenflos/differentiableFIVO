@@ -17,7 +17,7 @@ import sys
 
 
 
-def transport_from_potentials(x, f, g, eps, logw, n, ):
+def transport_from_potentials(x, f, g, eps, logw, n):
     """
     To get the transported particles from the sinkhorn iterates
     :param x: tf.Tensor[N, D]
@@ -58,7 +58,7 @@ def transport_from_potentials(x, f, g, eps, logw, n, ):
     return res, uniform_log_weight
 
 
-def solve_for_state(x, logw, eps, threshold, max_iter, n):
+def solve_for_state(x, logw, eps, threshold, max_iter, n, batch_size):
     """
     :param x: tf.Tensor[N, D]
         The input
@@ -72,11 +72,11 @@ def solve_for_state(x, logw, eps, threshold, max_iter, n):
         the potentials
     """
     uniform_log_weight = -math.log(n) * tf.ones_like(logw)
-    alpha, beta, _, _ = sinkhorn_potentials(uniform_log_weight, x, logw, x, eps, threshold, max_iter)
+    alpha, beta, _, _ = sinkhorn_potentials(uniform_log_weight, x, logw, x, eps, threshold, batch_size, max_iter)
     return alpha, beta
 
 
-def transport(x, logw, eps, threshold, n, max_iter):
+def transport(x, logw, eps, threshold, n, max_iter, batch_size):
     """
     Combine solve_for_state and transport_from_potentials in a "reweighting scheme"
     :param x: tf.Tensor[N, D]
@@ -90,7 +90,7 @@ def transport(x, logw, eps, threshold, n, max_iter):
     """
     # normalized_logw_print_op = tf.print( "normalized log: ", tf.reduce_min(logw))
     # with tf.control_dependencies([normalized_logw_print_op]):
-    alpha, beta = solve_for_state(x, logw, eps, threshold, max_iter, n)
+    alpha, beta = solve_for_state(x, logw, eps, threshold, max_iter, n, batch_size)
     #print_op1 = tf.print('alpha', alpha.shape)
     #print_op2 = tf.print('beta', beta.shape)
     #with tf.control_dependencies([print_op1,print_op2]):
@@ -107,7 +107,7 @@ def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, 
     #with tf.control_dependencies([print_op1]):
     reshaped_state = tf.reshape(x, [batch_size, num_particles, data_dim])
 
-    x_tilde, _ = transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
+    x_tilde, _ = transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter, batch_size)
 
     x_tilde = tf.reshape(x_tilde, [batch_size * num_particles, data_dim])
 
