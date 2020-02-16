@@ -109,54 +109,28 @@ def transport_helper(x, log_weights, num_particles, batch_size, eps, threshold, 
 
     x_tilde, _ = transport(reshaped_state, tf.transpose(log_weights), eps, threshold, num_particles, max_iter)
 
-    #print_op3 = tf.print("post transport x: ", x_tilde.shape)
-    #with tf.control_dependencies([print_op3]):
-    flat_x_tilde = tf.reshape(x_tilde, [batch_size * num_particles * data_dim])
+    x_tilde = tf.reshape(x_tilde, [batch_size * num_particles, data_dim])
 
-    return flat_x_tilde
+    return x_tilde
 
 
 def vrnn_transport_resamp(eps, threshold, max_iter=100):
 
     def func(log_weights, states, num_particles, batch_size, **_kwargs):
-        # extract tensor from state - rnn state
         data_dim = states.latent_encoded.get_shape().as_list()[-1]
+
         # get tensors from state
         rnn_state = states.rnn_state
-
-        # extract tensor from state - others
-        rnn_out = states.rnn_out
+        rnn_out = states.rnn_out # this does not get used, but need a placeholder
         latent_encoded = states.latent_encoded
 
         # concat
-        #c_prev = tf.expand_dims(c_prev, axis=1)
-        #m_prev = tf.expand_dims(m_prev, axis=1)
         state_tensor = tf.concat([rnn_state, latent_encoded], axis=1)
 
         # run transport resampling
+        new_state_tensor = transport_helper(state_tensor, log_weights, num_particles, batch_size, eps, threshold, max_iter)
+        new_rnn_state, new_latent_encoded = tf.split(new_state_tensor, num_or_size_splits = [data_dim*2, data_dim], axis=1)
 
-        print_op1 = tf.print("state_tensor", state_tensor.shape)
-        print_op2 = tf.print("rnn_state", rnn_state.shape)
-        with tf.control_dependencies([print_op1,print_op2]):
-            new_rnn_state = transport_helper(rnn_state, log_weights, num_particles, batch_size, eps, threshold, max_iter)
-
-        print_op3 = tf.print("rnn_state new", rnn_state.shape)
-        #new_rnn_state = tf.reshape(new_rnn_state, [batch_size * num_particles, data_dim*2])
-
-        with tf.control_dependencies([print_op3, print_op1]):
-            new_rnn_state = rnn_state + 0.
-
-        latent_encoded = tf.reshape(latent_encoded, [batch_size * num_particles, data_dim])
-        new_latent_encoded = transport_helper(latent_encoded, log_weights, num_particles, batch_size, eps, threshold, max_iter)
-        new_latent_encoded = tf.reshape(new_latent_encoded, [batch_size * num_particles, data_dim])
-
-        #new_state_tensor = transport_helper(state_tensor, log_weights, num_particles, batch_size, eps, threshold, max_iter)
-        #new_state_tensor = tf.reshape(new_state_tensor, [batch_size*num_particles, data_dim*3])
-        # put back into vrnn state
-        #new_rnn_state, new_latent_encoded = new_state_tensor[:,data_dim*2], new_state_tensor[:, data_dim*2:]
-        #new_latent_encoded = tf.reshape(new_latent_encoded, [batch_size * num_particles, data_dim])
-        #new_rnn_state = tf.reshape(new_rnn_state, [batch_size * num_particles, data_dim])
-        #log_weights = tf.reshape(log_weights, [num_particles, batch_size])
 
         new_state = TrainableVRNNState(rnn_state=new_rnn_state,
                                        rnn_out=rnn_out,
