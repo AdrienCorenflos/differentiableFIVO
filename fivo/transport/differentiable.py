@@ -181,6 +181,7 @@ def get_transport_fun(eps, threshold, max_iter=100, model_tag = None):
     else:
         def func(log_weights, states, num_particles, batch_size, **_kwargs):
             new_states = transport_helper(states, log_weights, num_particles, batch_size, eps, threshold, max_iter)
+            new_states = tf.reshape(new_states, [batch_size * num_particles])
             return new_states
 
     return func
