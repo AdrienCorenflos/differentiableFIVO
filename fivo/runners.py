@@ -244,7 +244,8 @@ def run_train(config, create_dataset_and_model_fn=create_dataset_and_model):
           save_summaries_steps=config.summarize_every,
           log_step_count_steps=config.summarize_every) as sess:
         cur_step = -1
-        while not sess.should_stop() and cur_step <= config.max_steps:
+        bound_num = 0.
+        while not sess.should_stop() and cur_step <= config.max_steps and not np.isnan(bound_num):
           if config.task > 0 and not start_training:
             cur_step = sess.run(global_step)
             tf.logging.info("task %d not active yet, sleeping at step %d" %
@@ -253,7 +254,7 @@ def run_train(config, create_dataset_and_model_fn=create_dataset_and_model):
             if cur_step >= config.task * 1000:
               start_training = True
           else:
-            _, cur_step = sess.run([train_op, global_step])
+            bound_num, _, cur_step = sess.run([bound, train_op, global_step])
 
 
 def run_eval(config, create_dataset_and_model_fn=create_dataset_and_model):
@@ -376,7 +377,7 @@ def run_eval(config, create_dataset_and_model_fn=create_dataset_and_model):
     summary_dir = config.logdir + "/" + config.split
     summary_writer = tf.summary.FileWriter(
         summary_dir, flush_secs=15, max_queue=100)
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=50)
     with tf.train.SingularMonitoredSession() as sess:
       wait_for_checkpoint(saver, sess, config.logdir)
       step = sess.run(global_step)
